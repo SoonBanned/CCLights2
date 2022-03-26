@@ -2,6 +2,12 @@ package ds.mods.CCLights2.client.render;
 
 import java.awt.Color;
 
+import org.lwjgl.opengl.GL11;
+
+import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
+import ds.mods.CCLights2.CommonProxy;
+import ds.mods.CCLights2.block.tileentity.TileEntityExternalMonitor;
+import ds.mods.CCLights2.gpu.Texture;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderBlocks;
@@ -14,13 +20,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.Facing;
 import net.minecraft.world.IBlockAccess;
 
-import org.lwjgl.opengl.GL11;
-
-import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
-import ds.mods.CCLights2.CommonProxy;
-import ds.mods.CCLights2.block.tileentity.TileEntityExternalMonitor;
-import ds.mods.CCLights2.gpu.Texture;
-
 public class TileEntityExternalMonitorRenderer extends TileEntitySpecialRenderer implements ISimpleBlockRenderingHandler{
 	
 	public DynamicTexture texture;
@@ -32,7 +31,7 @@ public class TileEntityExternalMonitorRenderer extends TileEntitySpecialRenderer
 	public TileEntityExternalMonitorRenderer()
 	{
 		re = Minecraft.getMinecraft().renderEngine;
-		texture = new DynamicTexture(16*32, 9*32);
+		texture = new DynamicTexture(32*32, 32*32);
 		tile.mon.tex.fill(Color.blue);
 		tile.mon.tex.drawText("Hello,", 0, 0, Color.white);
 		tile.mon.tex.drawText("World!", 0, 9, Color.white); //Yes, the fake ass wrap trick
@@ -82,12 +81,12 @@ public class TileEntityExternalMonitorRenderer extends TileEntitySpecialRenderer
 				e.printStackTrace();
 			}
 		}
-		TextureUtil.uploadTexture(texture.getGlTextureId(), tex.rgbCache, 16*32, 9*32);
+		TextureUtil.uploadTexture(texture.getGlTextureId(), tex.rgbCache, 32*32, 32*32);
 		GL11.glDisable(GL11.GL_LIGHTING);
 		t.startDrawingQuads();
-		t.addVertexWithUV(-0.5F, 0.5F, 0.501F, 0F, (m.m_height*32F)/(9*32F));
-		t.addVertexWithUV(0.5F, 0.5F, 0.501F, (m.m_width*32F)/(16*32F), (m.m_height*32F)/(9*32F));
-		t.addVertexWithUV(0.5F, 1.5F, 0.501F, (m.m_width*32F)/(16*32F), 0F);
+		t.addVertexWithUV(-0.5F, 0.5F, 0.501F, 0F, (m.m_height*32F)/(32*32F));
+		t.addVertexWithUV(0.5F, 0.5F, 0.501F, (m.m_width*32F)/(32*32F), (m.m_height*32F)/(32*32F));
+		t.addVertexWithUV(0.5F, 1.5F, 0.501F, (m.m_width*32F)/(32*32F), 0F);
 		t.addVertexWithUV(-0.5F, 1.5F, 0.501F, 0F, 0F);
 		t.draw();
 		GL11.glEnable(GL11.GL_LIGHTING);
@@ -110,7 +109,7 @@ public class TileEntityExternalMonitorRenderer extends TileEntitySpecialRenderer
 	}
 
 	@Override
-	public boolean shouldRender3DInInventory() {
+	public boolean shouldRender3DInInventory(int modelId) {
 		return true;
 	}
 

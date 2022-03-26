@@ -18,20 +18,15 @@ import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraftforge.common.ForgeDirection;
-
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.google.common.collect.ImmutableSortedSet;
 
 import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import dan200.computercraft.api.filesystem.IMount;
 import dan200.computercraft.api.lua.ILuaContext;
+import dan200.computercraft.api.lua.LuaException;
 import dan200.computercraft.api.peripheral.IComputerAccess;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import ds.mods.CCLights2.CCLights2;
@@ -44,6 +39,10 @@ import ds.mods.CCLights2.gpu.GPU;
 import ds.mods.CCLights2.gpu.Monitor;
 import ds.mods.CCLights2.gpu.Texture;
 import ds.mods.CCLights2.network.PacketSenders;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraftforge.common.util.ForgeDirection;
 
 public class TileEntityGPU extends TileEntity implements IPeripheral {
 	public GPU gpu;
@@ -62,12 +61,12 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		gpu.tile = this;
 	}
 
-	public void startClick(Player player, int button, int x, int y) {
+	public void startClick(EntityPlayer player, int button, int x, int y) {
 		int id = new Random().nextInt();
 		while (playerToClickMap.containsValue(id)) {
 			id = new Random().nextInt();
 		}
-		playerToClickMap.put(((EntityPlayer) player).username, id);
+		playerToClickMap.put(player.getDisplayName(), id);
 		clickToDataMap.put(id, new int[] { button, x, y });
 
 		String event = "monitor_down";
@@ -77,8 +76,8 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		}
 	}
 
-	public void moveClick(Player player, int nx, int ny) {
-		int id = playerToClickMap.get(((EntityPlayer) player).username);
+	public void moveClick(EntityPlayer player, int nx, int ny) {
+		int id = playerToClickMap.get(player.getDisplayName());
 		int[] data = clickToDataMap.get(id);
 		int button = data[0];
 		data[1] = nx;
@@ -91,8 +90,8 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		}
 	}
 
-	public void endClick(Player player) {
-		int id = playerToClickMap.get(((EntityPlayer) player).username);
+	public void endClick(EntityPlayer player) {
+		int id = playerToClickMap.get(player.getDisplayName());
 		int[] data = clickToDataMap.get(id);
 		int button = data[0];
 		int x = data[1];
@@ -103,7 +102,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		for (IComputerAccess c : comp) {
 			c.queueEvent(event, args);
 		}
-		playerToClickMap.remove(((EntityPlayer) player).username);
+		playerToClickMap.remove(player.getDisplayName());
 		clickToDataMap.remove(id);
 	}
 
@@ -116,7 +115,8 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 	public String[] getMethodNames() {
 		return new String[] { "fill", "plot", "createTexture", "drawTexture",
 				"drawText", "bindTexture", "freeTexture", "line", "rectangle",
-				"filledRectangle", "setPixels", "flipTextureV", "import",
+				"filledRectangle", "triangle", "filledTriangle", "oval",
+				"filledOval", "setPixels", "flipTextureV", "import",
 				"translate", "rotate", "rotateAround", "scale", "push", "pop",
 				"blur", "clearRect", "origin", "getFreeMemory",
 				"getTotalMemory", "getUsedMemory", "getSize", "getPixels",
@@ -127,6 +127,20 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 	@SuppressWarnings("rawtypes")
 	@Override
 	public synchronized Object[] callMethod(IComputerAccess computer,
+			ILuaContext context, int method, Object[] args) throws LuaException {
+		try {
+			return _callMethod(computer, context, method, args);
+		} catch (LuaException e) {
+			throw e;
+		} catch (Exception e) {
+			LuaException le = new LuaException(e.getMessage());
+			le.initCause(e.getCause());
+			throw le;
+		}
+	}
+	
+	@SuppressWarnings("rawtypes")
+	private synchronized Object[] _callMethod(IComputerAccess computer,
 			ILuaContext context, int method, Object[] args) throws Exception {
 		switch (EnumCache[method]) {
 		case Fill: {
@@ -148,9 +162,9 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 				Object[] ret = gpu.processCommand(cmd);
 				int id = (Integer) ret[0];
 				if (id == -1) {
-					throw new Exception("createTexture: Not enough memory");
+					throw new LuaException("createTexture: Not enough memory");
 				} else if (id == -2) {
-					throw new Exception("createTexture: Not enough texture slots");
+					throw new LuaException("createTexture: Not enough texture slots");
 				} else {
 					gpu.drawlist.push(cmd);
 					return ret;
@@ -158,7 +172,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("createTexture: Argument Error: width, height expected");
+				throw new LuaException("createTexture: Argument Error: width, height expected");
 			}
 		}
 		case GetFreeMemory: {
@@ -177,7 +191,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			//bindTexture
 			if (args.length > 0) {
 				if (gpu.textures[ConvertInteger.convert(args[0])] == null)
-					throw new Exception("bindTexture: Texture does not exist");
+					throw new LuaException("bindTexture: Texture does not exist");
 				DrawCMD cmd = new DrawCMD();
 				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]) };
 				cmd.cmd = CommandEnum.BindTexture;
@@ -187,12 +201,12 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("bindTexture: Argument Error: textureid expected");
+				throw new LuaException("bindTexture: Argument Error: textureid expected");
 			}
 			break;
 		}
 		case Plot: {
-			//was plot and setColorRGB is now plot
+			//plot
 			if (args.length >= 2) {
 				int x = ConvertInteger.convert(args[0]);
 				int y = ConvertInteger.convert(args[1]);
@@ -212,7 +226,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("plot: Argument Error: x, y expected");
+				throw new LuaException("plot: Argument Error: x, y expected");
 			}
 			break;
 		}
@@ -239,7 +253,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("drawTexture: Argument Error: textureid, x, y expected");
+				throw new LuaException("drawTexture: Argument Error: textureid, x, y expected");
 			}
 			break;
 		}
@@ -255,7 +269,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("freeTexture: Argument Error: textureid expected");
+				throw new LuaException("freeTexture: Argument Error: textureid expected");
 			}
 			break;
 		}
@@ -273,7 +287,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("line: Argument Error: x1, y1, x2, y2 expected");
+				throw new LuaException("line: Argument Error: x1, y1, x2, y2 expected");
 			}
 			break;
 		}
@@ -285,7 +299,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 				tex = ConvertInteger.convert(args[0]);
 			}
 			if (gpu.textures[tex] == null)
-				throw new Exception("getMonitorSize: texture does not exist");
+				throw new LuaException("getSize: texture does not exist");
 			Texture texture = gpu.textures[tex];
 			return new Object[] { texture.getWidth(),texture.getHeight() };
 		}
@@ -299,7 +313,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("getPixelColor: Argument Error: x, y expected");
+				throw new LuaException("getPixelColor: Argument Error: x, y expected");
 			}
 		}
 		case Rectangle: {
@@ -316,12 +330,12 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("rectangle: Argument Error: x, y, width, height expected");
+				throw new LuaException("rectangle: Argument Error: x, y, width, height expected");
 			}
 			break;
 		}
 		case FilledRectangle: {
-			//filledrectangle
+			//filledRectangle
 			if (args.length > 3) {
 				DrawCMD cmd = new DrawCMD();
 				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]),
@@ -334,7 +348,63 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("filledRectangle: Argument Error: x, y, width, height expected");
+				throw new LuaException("filledRectangle: Argument Error: x, y, width, height expected");
+			}
+			break;
+		}
+		case Triangle: {
+			//triangle
+			if (args.length > 5) {
+				DrawCMD cmd = new DrawCMD();
+				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]), ConvertInteger.convert(args[1]), ConvertInteger.convert(args[2]), ConvertInteger.convert(args[3]), ConvertInteger.convert(args[4]), ConvertInteger.convert(args[5]) };
+				cmd.cmd = CommandEnum.Triangle;
+				cmd.args = nargs;
+				gpu.processCommand(cmd);
+				gpu.drawlist.push(cmd);
+			} else {
+				throw new LuaException("triangle: Argument Error: x1, y1, x2, y2, x3, y3 expected");
+			}
+			break;
+		}
+		case FilledTriangle: {
+			//filledTriangle
+			if (args.length > 5) {
+				DrawCMD cmd = new DrawCMD();
+				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]), ConvertInteger.convert(args[1]), ConvertInteger.convert(args[2]), ConvertInteger.convert(args[3]), ConvertInteger.convert(args[4]), ConvertInteger.convert(args[5]) };
+				cmd.cmd = CommandEnum.FilledTriangle;
+				cmd.args = nargs;
+				gpu.processCommand(cmd);
+				gpu.drawlist.push(cmd);
+			} else {
+				throw new LuaException("filledTriangle: Argument Error: x1, y1, x2, y2, x3, y3 expected");
+			}
+			break;
+		}
+		case Oval: {
+			//oval
+			if (args.length > 3) {
+				DrawCMD cmd = new DrawCMD();
+				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]), ConvertInteger.convert(args[1]), ConvertInteger.convert(args[2]), ConvertInteger.convert(args[3]) };
+				cmd.cmd = CommandEnum.Oval;
+				cmd.args = nargs;
+				gpu.processCommand(cmd);
+				gpu.drawlist.push(cmd);
+			} else {
+				throw new LuaException("oval: Argument Error: x, y, width, height expected");
+			}
+			break;
+		}
+		case FilledOval: {
+			//filledOval
+			if (args.length > 3) {
+				DrawCMD cmd = new DrawCMD();
+				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]), ConvertInteger.convert(args[1]), ConvertInteger.convert(args[2]), ConvertInteger.convert(args[3]) };
+				cmd.cmd = CommandEnum.FilledOval;
+				cmd.args = nargs;
+				gpu.processCommand(cmd);
+				gpu.drawlist.push(cmd);
+			} else {
+				throw new LuaException("filledOval: Argument Error: x, y, width, height expected");
 			}
 			break;
 		}
@@ -345,7 +415,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		case SetPixels: {
 			//setPixels
 			if (args.length < 4) {
-				throw new Exception("setPixelsRaw: Argument Error: w, h, x, y, {[r,g,b,a]}... expected");
+				throw new LuaException("setPixels: Argument Error: w, h, x, y, {[r,g,b,a]}... expected");
 			} else {
 				int w = ConvertInteger.convert(args[0]);
 				int h = ConvertInteger.convert(args[1]);
@@ -369,7 +439,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 		}
 		case FlipVertically: {
-			//flipTextureV
+			//flipVertically
 			if (args.length > 0) {
 				DrawCMD cmd = new DrawCMD();
 				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]) };
@@ -380,7 +450,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 				return ret;
 			}
 			else{
-				throw new Exception("Number expected.");
+				throw new LuaException("flipVertically: Argument Error: textureid expected");
 			}
 		}
 		case Import: {
@@ -401,7 +471,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			else if (args.length == 1 && args[0] instanceof String)
 			{
 				String file = (String)args[0];
-				if (file.startsWith(".") || file.startsWith("/") || file.startsWith("\\")){throw new Exception("import: Argument Error: Invalid char used at start of filename!");}
+				if (file.startsWith(".") || file.startsWith("/") || file.startsWith("\\")){throw new LuaException("import: Argument Error: Invalid char used at start of filename!");}
 				File f = new File(CCLights2.proxy.getWorldDir(worldObj),"computer/"+computer.getID()+"/"+file);
 				FileInputStream in = new FileInputStream(f);
 				byte[] b = new byte[(int)in.getChannel().size()];
@@ -411,7 +481,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("import: Argument Error: (filedata or filename)");
+				throw new LuaException("import: Argument Error: (filedata or filename)");
 			}
 			DrawCMD cmd = new DrawCMD();
 			Object[] nargs = new Object[]{data};
@@ -434,7 +504,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 				String format = ConvertString.convert(args[1]);
 				if (texid<0 || texid>gpu.textures.length || gpu.textures[texid] == null)
 				{
-					throw new Exception("Texture does not exist.");
+					throw new LuaException("export: Texture does not exist.");
 				}
 				Texture tex = gpu.textures[texid];
 				ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -449,12 +519,12 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("export: Argument Error: textureid, format expected");
+				throw new LuaException("export: Argument Error: textureid, format expected");
 			}
 		}
 		case DrawText:
 		{
-			//Drawtext
+			//drawText
 			if (args.length > 2)
 			{
 				String str = ConvertString.convert(args[0]);
@@ -487,7 +557,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("drawText: Argument Error: text, x, y expected");
+				throw new LuaException("drawText: Argument Error: text, x, y expected");
 			}
 		}
 		case GetTextWidth:
@@ -500,7 +570,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("getTextWidth: Argument Error: text expected");
+				throw new LuaException("getTextWidth: Argument Error: text expected");
 			}
 		}
 		case SetColor:
@@ -526,7 +596,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("setColor: Argument Error: int, int, int[, int] expected");
+				throw new LuaException("setColor: Argument Error: int, int, int[, int] expected");
 			}
 		}
 		case GetColor:
@@ -534,7 +604,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			//getColor
 			return new Object[]{gpu.color.getRed(),gpu.color.getGreen(),gpu.color.getBlue(),gpu.color.getAlpha()};
 		}
-		case Transelate:
+		case Translate:
 		{
 			//translate
 			double x = ConvertDouble.convert(args[0]);
@@ -543,7 +613,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			Object[] nargs = new Object[2];
 			nargs[0] = x;
 			nargs[1] = y;
-			cmd.cmd = CommandEnum.Transelate;
+			cmd.cmd = CommandEnum.Translate;
 			cmd.args = nargs;
 			Object[] ret = gpu.processCommand(cmd);
 			gpu.drawlist.push(cmd);
@@ -631,7 +701,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("blur: Argument Error: textureid expected");
+				throw new LuaException("blur: Argument Error: textureid expected");
 			}
 		}
 		case StartFrame:
@@ -648,7 +718,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 		}
 		case ClearRectangle:
 		{
-			//clearRect
+			//clearRectangle
 			if (args.length >= 4) {
 				DrawCMD cmd = new DrawCMD();
 				Object[] nargs = new Object[] { ConvertInteger.convert(args[0]),ConvertInteger.convert(args[1]),ConvertInteger.convert(args[2]),ConvertInteger.convert(args[3]) };
@@ -660,7 +730,7 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 			}
 			else
 			{
-				throw new Exception("clearRect: Argument Error: x, y, width, height expected");
+				throw new LuaException("clearRectangle: Argument Error: x, y, width, height expected");
 			}
 		}
 		case Origin:
@@ -764,13 +834,13 @@ public class TileEntityGPU extends TileEntity implements IPeripheral {
 	public void connectToMonitor() {
 		for (int i = 0; i < ForgeDirection.VALID_DIRECTIONS.length; i++) {
 			ForgeDirection dir = ForgeDirection.VALID_DIRECTIONS[i];
-			TileEntity ftile = worldObj.getBlockTileEntity(
+			TileEntity ftile = worldObj.getTileEntity(
 					xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord
 							+ dir.offsetZ);
 			if (ftile != null) {
 				if (ftile instanceof TileEntityMonitor) {
 					TileEntityMonitor tile = (TileEntityMonitor) worldObj
-							.getBlockTileEntity(xCoord + dir.offsetX, yCoord
+							.getTileEntity(xCoord + dir.offsetX, yCoord
 									+ dir.offsetY, zCoord + dir.offsetZ);
 					if (tile != null) {
 						boolean found = false;

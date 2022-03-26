@@ -2,24 +2,24 @@ package ds.mods.CCLights2.block.tileentity;
 
 import java.awt.Color;
 
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.AxisAlignedBB;
-
 import com.google.common.io.ByteArrayDataInput;
 
 import cpw.mods.fml.common.FMLLog;
 import dan200.computercraft.api.lua.ILuaContext;
+import dan200.computercraft.api.lua.ILuaObject;
 import dan200.computercraft.api.peripheral.IComputerAccess;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import ds.mods.CCLights2.CCLights2;
 import ds.mods.CCLights2.gpu.Monitor;
 import ds.mods.CCLights2.network.PacketSenders;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.Packet;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.AxisAlignedBB;
 
-public class TileEntityExternalMonitor extends TileEntityMonitor implements IPeripheral {
-	public static final int MAX_WIDTH = 16;
-	public static final int MAX_HEIGHT = 9;
+public class TileEntityExternalMonitor extends TileEntityMonitor {
+	public static final int MAX_WIDTH = 32;
+	public static final int MAX_HEIGHT = 32;
 	public static final int TICKS_TIL_SYNC = 20 * 600;
 	public boolean dirty = false;
 	public boolean m_destroyed = false;
@@ -37,6 +37,11 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 	public TileEntityExternalMonitor() {
 		mon = new Monitor(32, 32,getMonitorObject());
 		mon.tex.fill(Color.black);
+	}
+	
+	@Override
+	public MonitorObject getMonitorObject() {
+		return new ExternalMonitorObject();
 	}
 
 	public void destroy() {
@@ -70,8 +75,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 			int maxX = (minX == monitor.xCoord ? this.xCoord : monitor.xCoord) + 1;
 			int maxY = (minY == monitor.yCoord ? this.yCoord : monitor.yCoord) + 1;
 			int maxZ = (minZ == monitor.zCoord ? this.zCoord : monitor.zCoord) + 1;
-			return AxisAlignedBB.getAABBPool().getAABB(minX, minY, minZ, maxX,
-					maxY, maxZ);
+			return AxisAlignedBB.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
 		}
 
 		return CCLights2.monitorBig.getCollisionBoundingBoxFromPool(
@@ -178,7 +182,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 	public TileEntityExternalMonitor getSimilarMonitorAt(int x, int y, int z) {
 		if ((y >= 0) && (y < this.worldObj.getHeight())) {
 			if (this.worldObj.getChunkProvider().chunkExists(x >> 4, z >> 4)) {
-				TileEntity tile = this.worldObj.getBlockTileEntity(x, y, z);
+				TileEntity tile = this.worldObj.getTileEntity(x, y, z);
 				if ((tile != null) && ((tile instanceof TileEntityExternalMonitor))) {
 					TileEntityExternalMonitor monitor = (TileEntityExternalMonitor) tile;
 					if ((monitor.getDir() == getDir())
@@ -258,7 +262,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 		if ((left != null) && (left.m_yIndex == 0)
 				&& (left.m_height == this.m_height)) {
 			int width = left.m_width + this.m_width;
-			if (width <= 16) {
+			if (width <= MAX_WIDTH) {
 				left.origin().resize(width, this.m_height);
 				left.expand();
 				return true;
@@ -272,7 +276,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 		if ((right != null) && (right.m_yIndex == 0)
 				&& (right.m_height == this.m_height)) {
 			int width = this.m_width + right.m_width;
-			if (width <= 16) {
+			if (width <= MAX_WIDTH) {
 				origin().resize(width, this.m_height);
 				expand();
 				return true;
@@ -286,7 +290,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 		if ((above != null) && (above.m_xIndex == 0)
 				&& (above.m_width == this.m_width)) {
 			int height = above.m_height + this.m_height;
-			if (height <= 9) {
+			if (height <= MAX_HEIGHT) {
 				origin().resize(this.m_width, height);
 				expand();
 				return true;
@@ -300,7 +304,7 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 		if ((below != null) && (below.m_xIndex == 0)
 				&& (below.m_width == this.m_width)) {
 			int height = this.m_height + below.m_height;
-			if (height <= 9) {
+			if (height <= MAX_HEIGHT) {
 				below.origin().resize(this.m_width, height);
 				below.expand();
 				return true;
@@ -460,43 +464,31 @@ public class TileEntityExternalMonitor extends TileEntityMonitor implements IPer
 		propogateTerminal();
 	}
 
-	@Override
-	public String[] getMethodNames() {
-		return new String[]{"getResolution","getDPM","getBlockResolution"};
-	}
-
-	@Override
-	public Object[] callMethod(IComputerAccess computer,ILuaContext context, int method,Object[] arguments) throws Exception {
-		switch (method)
-		{
-		case 0:
-		{
-			return new Object[]{mon.getWidth(),mon.getHeight()};
+	public class ExternalMonitorObject extends MonitorObject
+	{
+		@Override
+		public String[] getMethodNames() {
+			return new String[]{"getResolution","getDPM","getBlockResolution"};
 		}
-		case 1:
-		{
-			return new Object[]{32};
+	
+		@Override
+		public Object[] callMethod(ILuaContext context, int method,Object[] arguments) {
+			switch (method)
+			{
+			case 0:
+			{
+				return new Object[]{mon.getWidth(),mon.getHeight()};
+			}
+			case 1:
+			{
+				return new Object[]{32};
+			}
+			case 2:
+			{
+				return new Object[]{m_width,m_height};
+			}
+			}
+			return null;
 		}
-		case 2:
-		{
-			return new Object[]{m_width,m_height};
-		}
-		}
-		return null;
-	}
-
-	@Override
-	public String getType() {return "Monitor";}
-
-	@Override
-	public void attach(IComputerAccess computer) {}
-
-	@Override
-	public void detach(IComputerAccess computer) {}
-
-	@Override
-	public boolean equals(IPeripheral other) {
-		if(other.getType() == getType()){return true;}
-		else return false;
 	}
 }

@@ -23,7 +23,7 @@ public class Monitor {
 		width = w;
 		height = h;
 		tex = new Texture(w, h);
-		tex.rgbCache = new int[16*32*9*32];
+		tex.rgbCache = new int[32*32*32*32];
 		tex.fill(Color.black);
 		tex.texUpdate();
 		obj = o;
@@ -38,7 +38,7 @@ public class Monitor {
 		width = w;
 		height = h;
 		tex.resize(w, h);
-		tex.rgbCache = new int[16*32*9*32];
+		tex.rgbCache = new int[32*32*32*32];
 		tex.fill(Color.black);
 		tex.texUpdate();
 		CCLights2.debug("Resized to: "+w+","+h);

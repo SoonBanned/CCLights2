@@ -7,12 +7,13 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.RescaleOp;
 import java.io.IOException;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
-import net.minecraft.util.ChatAllowedCharacters;
 import ds.mods.CCLights2.CCLights2;
 import ds.mods.CCLights2.jhlabs.image.BoxBlurFilter;
+import net.minecraft.util.ChatAllowedCharacters;
 
 
 public class Texture {
@@ -219,6 +220,78 @@ public class Texture {
 	}
 	
 	/**
+	 * Draws an filled triangle from points (x1,y1), (x2,y2), and (x3,y3)
+	 * @param c
+	 * @param x1
+	 * @param y1
+	 * @param x2
+	 * @param y2
+	 * @param x3
+	 * @param y3
+	 */
+	public void filledTriangle(Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+	{
+		graphics.setTransform(transform);
+		graphics.setColor(c);
+		int[] x = {x1,x2,x3};
+		int[] y = {y1,y2,y3};
+		graphics.fillPolygon(x,y,3);
+		graphics.setTransform(resetTransform);
+	}
+	
+	/**
+	 * Draws an outlined triangle from points (x1,y1), (x2,y2), and (x3,y3)
+	 * @param c
+	 * @param x1
+	 * @param y1
+	 * @param x2
+	 * @param y2
+	 * @param x3
+	 * @param y3
+	 */
+	public void triangle(Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+	{
+		graphics.setTransform(transform);
+		graphics.setColor(c);
+		int[] x = {x1,x2,x3};
+		int[] y = {y1,y2,y3};
+		graphics.drawPolygon(x,y,3);
+		graphics.setTransform(resetTransform);
+	}
+	
+	/**
+	 * Creates a filled ellipse at x and y with a width and height of w and h
+	 * @param c
+	 * @param x
+	 * @param y
+	 * @param w
+	 * @param h
+	 */
+	public void filledOval(Color c, int x, int y, int w, int h)
+	{
+		graphics.setTransform(transform);
+		graphics.setColor(c);
+		graphics.fillOval(x-(w/2), y-(h/2), w, h);
+		graphics.setTransform(resetTransform);
+	}
+	
+	/**
+	 * Creates a outlined ellipse at x and y with a width and height of w and h
+	 * @param c
+	 * @param x
+	 * @param y
+	 * @param w
+	 * @param h
+	 */
+	public void oval(Color c, int x, int y, int w, int h)
+	{
+		graphics.setTransform(transform);
+		graphics.setColor(c);
+		graphics.drawOval(x-(w/2), y-(h/2), w, h);
+		graphics.setTransform(resetTransform);
+	}
+	
+	/**
 	 * draw a line from point x1,y1 into x2,y2
 	 * @param c
 	 * @param x1
@@ -357,7 +430,7 @@ public class Texture {
         }
         else
         {
-            int i = ChatAllowedCharacters.allowedCharacters.indexOf(par1);
+            int i = Arrays.asList(ChatAllowedCharacters.allowedCharacters).indexOf(par1);
 
             if (i >= 0)
             {
@@ -432,9 +505,10 @@ public class Texture {
 	 */
 	public void drawText(String text, int x, int y, Color c)
 	{
+		/**
 		for (int i = 0; i<text.length(); i++)
 		{
-			int cha = ChatAllowedCharacters.allowedCharacters.indexOf(text.charAt(i));
+			int cha = Arrays.asList(ChatAllowedCharacters.allowedCharacters).indexOf(text.charAt(i));
 			if (cha == -1) cha = 0;
 			//Draw character
 			int cx = cha%16;
@@ -454,7 +528,10 @@ public class Texture {
 				}
 			}
 			x+=getCharWidth(text.charAt(i));
+		
 		}
+		**/
+		graphics.drawString(text, x, y);
 	}
 
 	/**
@@ -524,7 +601,7 @@ public class Texture {
 	{
 		if (rgbCache != null)
 		{
-			img.getRGB(0, 0, width, height, rgbCache, 0, 16*32);
+			img.getRGB(0, 0, width, height, rgbCache, 0, 32*32);
 		}
 	}
 }
