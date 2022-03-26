@@ -4,10 +4,18 @@ CCLights 2 is a Open Source Minecraft mod that adds a Peripheral for ComputerCra
 or compile this 
 
 DONE:
+
 -Extend screen size limit to 32x32
+
 -Fixing drawText(text,x,y)
 
+
+
 TO DO:
+
 -Add texture for external screen
+
 -Add color to text
+
 -Add size to text
+
